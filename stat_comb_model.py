@@ -161,9 +161,8 @@ class Statistics_char():
                     bases[base] += self.voc[word]
         # Minimum base frequency (Andreev uses raw frequency
         # and sets the minimum to an unspecified "n").
-        min_freq = 1/100000
-        total = sum([self.voc[v] for v in self.voc])
-        return [b for b in bases if bases[b]/total > min_freq]
+        n = 5
+        return [b for b in bases if bases[b] > n]
 
 
     def get_remainders(self, bases):
