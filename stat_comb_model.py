@@ -339,7 +339,7 @@ def extend_affix(aff, pos):
     return aff
 
 
-def flexional_aff(bases1, bases2):
+def flexional_aff(l1, l2):
     """
     Compute reduction rate to make sure both
     affixes come under flexion (takes as input
@@ -353,7 +353,6 @@ def flexional_aff(bases1, bases2):
     # Compute reduction rate. Andreev does not say how to keep
     # bases1 higher than bases2 (in order to have reduction > 0).
     # We swap the variables if bases2 is higher.
-    l1, l2 = len(bases1), len(bases2)
     if l2 > l1:
         l1, l2 = l2, l1
     reduction = (l1 - l2) / (k * l1)
@@ -379,19 +378,51 @@ def get_aff_candidate_and_bases(bases1):
     return None, None
 
 
+def check_paradigm_unity(aff_is_prefix, aff_accepted, bases_accepted):
+    """
+    Before we accept the new paradigm, we need to check its unity.
+    """
+    # Proceed to some specification the types.
+    # All the affixes contain the same letter on the side in contact
+    # with the base. Move this letter to the base (mak-es => make-s).
+    if "" not in aff_accepted:
+        if aff_is_prefix:
+            while len( set( [ aff[-1] for aff in aff_accepted ] ) ) == 1:
+                # Get the common character and add it to the bases.
+                char = aff_accepted[0][-1]
+                bases_accepted = [ char+base for base in bases_accepted ]
+                # Remove the character from the affixes.
+                aff_accepted = [ aff[:-1] for aff in aff_accepted ]
+                return aff_accepted, bases_accepted
+        else:
+            while len( set( [ aff[0] for aff in aff_accepted ] ) ) == 1:
+                # Get the common character and add it to the bases.
+                char = aff_accepted[0][0]
+                bases_accepted = [ base+char for base in bases_accepted ]
+                # Remove the character from the affixes.
+                aff_accepted = [ aff[1:] for aff in aff_accepted ]
+                return aff_accepted, bases_accepted
+
+    return aff_accepted, bases_accepted
+
+
 def close_type():
     """
     The search for the type is over, store what we have
     collected about it so far.
     """
     global morph_type, morphemes, aff_is_prefix
-    global aff_accepted, bases_accepted
+    global aff_accepted, bases_remainders
     if aff_accepted != []:
-        morphemes[morph_type] = (aff_is_prefix,
+        aff_accepted, bases_accepted = check_paradigm_unity(aff_is_prefix,
+                                                            aff_accepted,
+                                                            bases_remainders)
+        morphemes[morph_type] = [aff_is_prefix,
                                  aff_accepted,
-                                 bases_accepted)
+                                 bases_accepted]
         print "\nCreated type", morph_type
         print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
+        print "Accepted bases:", ", ".join(bases_accepted).encode('utf-8')
         morph_type += 1
 
 
@@ -403,7 +434,10 @@ learning of morphology.
 							
 parser.add_argument('-i', dest='c', nargs="?",
         type=argparse.FileType('r'), help="input file")
+parser.add_argument('-no-prefix', dest='no_prefix',
+                    action='store_true', help="Ignore prefixes")
 
+parser.set_defaults(feature=False)
 args = parser.parse_args()
 
 corpus, voc, len_word, len_sent = get_corpus(args.c)
@@ -418,14 +452,15 @@ len_max_aff = int((len_word**2) / len_sent) + 2 # set to 3
 # Filter the vocabulary according to the word threshold
 # We will be working using this dictionnary.
 stats = Statistics_char(filter_voc(voc, thres_word))
-# The output of the model is stored in a dictionary:
-# key = type ; value = (affix_type, [affixes], [bases])
+# The output of the model is stored in a dictionary (morphemes):
+# key = type ; value = [ affix_type, [affixes], [bases] ]
 morphemes  = {}
 morph_type = 1
 for char, pos, val in stats.get_informants():
+    if pos >= 0 and args.no_prefix:
+        continue
     # Start the search for the type's affixes and bases.
     aff_accepted    = []
-    bases_accepted  = []
     aff_refused     = []
     count_refused   = 0
     # What kind of affix are we about to get? If pos is negative,
@@ -438,13 +473,12 @@ for char, pos, val in stats.get_informants():
     print "\nInformant extended to affix", aff_start.encode('utf-8')
     # Get the bases seen with the start affix.
     bases_remainders = stats.get_filter_bases(aff_start)
+    # If aff_start is not accepted during the first test, reject it
+    # and take the next informant. So while first_affix is true, affix
+    # rejection leads to abandon the search for the type.
+    first_affix     = True
     continue_search = True
     while continue_search:
-        # Stop if there are less than 3 bases left.
-        if len(bases_remainders) < 3:
-            print "\nEnd of search for the type (less than 3 bases left)."
-            close_type()
-            break
         # Get the bases seen with the start affixe.
         # For the null affix, keep the bases it had at the previous step
         # in bases2 (since the null affix cannot be the 1st affix of the
@@ -461,25 +495,34 @@ for char, pos, val in stats.get_informants():
             break
         print "\nCandidate affixes:", aff_start.encode('utf-8'), "-", aff_candidate.encode('utf-8')
         # Do the affixes come under inflexion?
-        if flexional_aff(bases1, bases2):
-            print "==> Affix", aff_candidate.encode('utf-8'), "ACCEPTED."
+        if flexional_aff( len(bases1), len(bases2) ):
             # Keep the base remainders that are common to both affixes.
-            bases_remainders = [r for r in bases_remainders\
+            next_bases = [r for r in bases_remainders\
                                     if r in bases1 and r in bases2]
-            # Add new accepted affix and bases to the list.
-            # Keep the union of the bases corresponding to
-            # the candidate affixes (this list will be used
-            # to count the zero affix frequency).
-            inter_bases    = list( set(bases1) ^ set(bases2) )
-            bases_accepted = list( set(bases_accepted + bases2) )
-            for aff in [aff_start, aff_candidate]:
-                if aff not in aff_accepted:
-                    aff_accepted.append(aff)
-            # The candidate affix becomes the start affix.
-            aff_start     = aff_candidate
-            count_refused = 0
+            # After accepting the affix, we need to have at least 2 bases.
+            if len(next_bases) < 2:
+                print "\nEnd of search for the type (less than 2 bases left)."
+                close_type()
+                break
+            else:
+                # Update the base remainders.
+                bases_remainders = next_bases
+                print "==> Affix", aff_candidate.encode('utf-8'), "ACCEPTED."
+                # Add new accepted affix to the list.
+                for aff in [aff_start, aff_candidate]:
+                    if aff not in aff_accepted:
+                        aff_accepted.append(aff)
+                # The candidate affix becomes the start affix.
+                aff_start     = aff_candidate
+                count_refused = 0
+                first_affix = False
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
+            # The refused pair contains the first start affix. No type
+            # is to be extracted here.
+            if first_affix:
+                print "\nThe first affix is not accepted. No type extraction."
+                break
             aff_refused.append(aff_candidate)
             count_refused += 1
             # When 5 affixes are refused in a row, stop the search.
@@ -487,6 +530,8 @@ for char, pos, val in stats.get_informants():
                 print "\nEnd of search for the type (5 refused affixes in a row)."
                 continue_search = False
                 close_type()
+
+
  
 # Output the morphemes.
 pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
