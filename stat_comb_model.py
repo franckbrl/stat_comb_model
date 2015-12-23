@@ -384,25 +384,36 @@ def check_paradigm_unity(aff_is_prefix, aff_accepted, bases_accepted):
     # Proceed to some specification the types.
     # All the affixes contain the same letter on the side in contact
     # with the base. Move this letter to the base (mak-es => make-s).
-    if "" not in aff_accepted:
-        if aff_is_prefix:
-            while len( set( [ aff[-1] for aff in aff_accepted ] ) ) == 1:
-                # Get the common character and add it to the bases.
-                char = aff_accepted[0][-1]
-                bases_accepted = [ char+base for base in bases_accepted ]
-                # Remove the character from the affixes.
-                aff_accepted = [ aff[:-1] for aff in aff_accepted ]
-                return aff_accepted, bases_accepted
-        else:
-            while len( set( [ aff[0] for aff in aff_accepted ] ) ) == 1:
-                # Get the common character and add it to the bases.
-                char = aff_accepted[0][0]
-                bases_accepted = [ base+char for base in bases_accepted ]
-                # Remove the character from the affixes.
-                aff_accepted = [ aff[1:] for aff in aff_accepted ]
-                return aff_accepted, bases_accepted
-
+    if aff_is_prefix:
+        while "" not in aff_accepted and\
+                len( set( [ aff[-1] for aff in aff_accepted ] ) ) == 1:
+            # Get the common character and add it to the bases.
+            char = aff_accepted[0][-1]
+            bases_accepted = [ char+base for base in bases_accepted ]
+            # Remove the character from the affixes.
+            aff_accepted = [ aff[:-1] for aff in aff_accepted ]
+        return aff_accepted, bases_accepted
+    else:
+        while "" not in aff_accepted and\
+                len( set( [ aff[0] for aff in aff_accepted ] ) ) == 1:
+            # Get the common character and add it to the bases.
+            char = aff_accepted[0][0]
+            bases_accepted = [ base+char for base in bases_accepted ]
+            # Remove the character from the affixes.
+            aff_accepted = [ aff[1:] for aff in aff_accepted ]
+        return aff_accepted, bases_accepted
     return aff_accepted, bases_accepted
+
+
+def existing_paradigm(aff_accepted):
+    """
+    Have we accepted the same paradigm before?
+    """
+    global morphemes
+    for t in morphemes:
+        if set(morphemes[t][1]) == set(aff_accepted):
+            return t
+    return None
 
 
 def close_type():
@@ -416,13 +427,24 @@ def close_type():
         aff_accepted, bases_accepted = check_paradigm_unity(aff_is_prefix,
                                                             aff_accepted,
                                                             bases_remainders)
-        morphemes[morph_type] = [aff_is_prefix,
-                                 aff_accepted,
-                                 bases_accepted]
-        print "\nCreated type", morph_type
-        print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
-        print "Accepted bases:", ", ".join(bases_accepted).encode('utf-8')
-        morph_type += 1
+
+        # Have we accepted the same paradigm before?
+        type_aff = existing_paradigm(aff_accepted)
+        if type_aff != None:
+            # Update the existing type by adding the new bases.
+            morphemes[type_aff][2] = list(set( morphemes[type_aff][2] + bases_accepted ))
+            print "\nUpdated type", type_aff
+            print "Type affixes:", ", ".join(morphemes[type_aff][1]).encode('utf-8')
+            print "New type bases:", ", ".join(morphemes[type_aff][2]).encode('utf-8')
+        else:
+            # Create a new type.
+            morphemes[morph_type] = [aff_is_prefix,
+                                     aff_accepted,
+                                     bases_accepted]
+            print "\nCreated type", morph_type
+            print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
+            print "Accepted bases:", ", ".join(bases_accepted).encode('utf-8')
+            morph_type += 1
 
 
 parser = argparse.ArgumentParser( description =
@@ -472,6 +494,13 @@ for char, pos, val in stats.get_informants():
     print "\nInformant extended to affix", aff_start.encode('utf-8')
     # Get the bases seen with the start affix.
     bases_remainders = stats.get_filter_bases(aff_start)
+    # bases_remainders is the set of base we are going to process
+    # for the whole search of the type. Since this set of bases becomes
+    # smaller as affixes are accepted, we consider that the minimum length
+    # for the set depends on the initial set length.
+    min_remainders = int(len(bases_remainders)/1000) + 1
+    if min_remainders < 10:
+        min_remainders = 10
     # If aff_start is not accepted during the first test, reject it
     # and take the next informant. So while first_affix is true, affix
     # rejection leads to abandon the search for the type.
@@ -498,9 +527,11 @@ for char, pos, val in stats.get_informants():
             # Keep the base remainders that are common to both affixes.
             next_bases = [r for r in bases_remainders\
                                     if r in bases1 and r in bases2]
-            # After accepting the affix, we need to have at least 2 bases.
-            if len(next_bases) < 2:
-                print "\nEnd of search for the type (less than 2 bases left)."
+            # After accepting the affix, we need to have at least n bases
+            # (n = 2 according to Andreev, n = min_remainders here).
+            if len(next_bases) < min_remainders:
+                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
+                print "\nEnd of search for the type (less than", min_remainders, "bases left)."
                 close_type()
                 break
             else:
@@ -518,9 +549,9 @@ for char, pos, val in stats.get_informants():
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
             # The refused pair contains the first start affix. No type
-            # is to be extracted here.
+            # is to be created here.
             if first_affix:
-                print "\nThe first affix is not accepted. No type extraction."
+                print "\nThe first affix is not accepted. No type creation."
                 break
             aff_refused.append(aff_candidate)
             count_refused += 1
