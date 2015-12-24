@@ -173,11 +173,7 @@ class Statistics_char():
         global aff_is_prefix, aff_start
         global aff_accepted, aff_refused
         remainders = defaultdict(lambda: 0)
-        if aff_is_prefix:
-            regex = "(" + "|".join([b+"$" for b in bases]) + ")"
-        else:    
-            regex = "(" + "|".join(["^"+b for b in bases]) + ")"
-        regex = re.compile(regex).search
+        regex = get_base_regex(bases1)
         for word, base in [( w, m.group(1) )\
                           for w in self.voc for m in (regex(w),) if m]:
             if aff_is_prefix:
@@ -215,6 +211,25 @@ class Statistics_char():
                             key=operator.itemgetter(1),
                             reverse=True)
         return [r[0] for r in remainders]
+
+
+def get_base_regex(bases):
+    """
+    Store the bases in a regex.
+    """
+    print type(bases)
+    # If the bases contain special characters, despecialize.
+    bases = " --- ".join(bases)
+    bases = bases.replace("*", "\*")
+    bases = bases.replace("?", "\?")
+    bases = bases.replace(".", "\.")
+    bases = bases.replace("|", "\|")
+    bases = bases.split(" --- ")
+    if aff_is_prefix:
+        regex = "(" + "|".join([b+"$" for b in bases]) + ")"
+    else:    
+        regex = "(" + "|".join(["^"+b for b in bases]) + ")"
+    return re.compile(regex).search
 
 
 def get_corpus(txt):
