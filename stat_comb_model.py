@@ -217,7 +217,6 @@ def get_base_regex(bases):
     """
     Store the bases in a regex.
     """
-    print type(bases)
     # If the bases contain special characters, despecialize.
     bases = " --- ".join(bases)
     bases = bases.replace("*", "\*")
@@ -560,7 +559,7 @@ for char, pos, val in stats.get_informants():
                 # The candidate affix becomes the start affix.
                 aff_start     = aff_candidate
                 count_refused = 0
-                first_affix = False
+                first_affix   = False
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
             # The refused pair contains the first start affix. No type
