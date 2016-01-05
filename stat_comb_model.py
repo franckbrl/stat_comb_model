@@ -136,17 +136,17 @@ class Statistics_char():
         return sorted_n
 
 
-    def get_filter_bases(self, aff):
+    def get_filter_bases(self, aff, bases1=None):
         """
-        Get the bases seen with the affix (in an array).
+        Get from the corpus the bases seen with the
+        affix (in an array).
         """
         global aff_is_prefix
         len_aff = len(aff)
         bases = defaultdict(lambda: 0)
         # If the candidate affix is null, we count the bases seen
-        # with it among bases1.
+        # with it among the other affix bases.
         if aff == "":
-            global bases1
             for word in bases1:
                 if word in self.voc:
                     bases[word] += self.voc[word]
@@ -381,12 +381,12 @@ def get_aff_candidate_and_bases(bases1):
     Andreev does not consider the intersection of bases1 and 2.
     In order to avoid bad situations when intersection = 1 base
     (which shows that the affixes do not seem to be in the same
-    type), we set the minimum intersection length to 5.
+    type), we set the minimum intersection length to 10.
     """
     global bases_remainders
     for aff in stats.get_remainders([b for b in bases_remainders]):
-        bases2 = stats.get_filter_bases(aff)
-        if len( set(bases1) & set(bases2) ) > 5:
+        bases2 = stats.get_filter_bases(aff, bases1)
+        if len( set(bases1) & set(bases2) ) > 10:
             return aff, bases2
     return None, None
 
@@ -449,6 +449,7 @@ def close_type():
             morphemes[type_aff][2] = list(set( morphemes[type_aff][2] + bases_accepted ))
             print "\nUpdated type", type_aff
             print "Type affixes:", ", ".join(morphemes[type_aff][1]).encode('utf-8')
+            print "Number of bases:", len(morphemes[type_aff][2])
             print "New type bases:", ", ".join(morphemes[type_aff][2]).encode('utf-8')
         else:
             # Create a new type.
@@ -457,6 +458,7 @@ def close_type():
                                      bases_accepted]
             print "\nCreated type", morph_type
             print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
+            print "Number of bases:", len(bases_accepted)
             print "Accepted bases:", ", ".join(bases_accepted).encode('utf-8')
             morph_type += 1
 
@@ -522,13 +524,15 @@ for char, pos, val in stats.get_informants():
     continue_search = True
     while continue_search:
         # Get the bases seen with the start affixe.
-        # For the null affix, keep the bases it had at the previous step
-        # in bases2 (since the null affix cannot be the 1st affix of the
-        # type).
-        if aff_start == "":
-            base1 = list(bases2)
-        else:
-            bases1 = stats.get_filter_bases(aff_start)
+        if first_affix:
+            bases1 = list(bases_remainders)
+        elif count_refused == 0:
+            # The start affix is the null affix. Take the bases associated
+            # to it when it was accepted as aff2.
+            if aff_start == "":
+                bases1 = list(bases2)
+            else:
+                bases1 = stats.get_filter_bases(aff_start)
         # Get the second informant affix and the bases seen with it.
         aff_candidate, bases2 = get_aff_candidate_and_bases(bases1)
         if aff_candidate == None:
