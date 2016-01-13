@@ -89,6 +89,8 @@ class Statistics_char():
             pos  = inf[0][0]
             val  = inf[1]
             self.informants.append((char, pos, val))
+            """print "INFORMANT:", char.encode('utf-8'), "at position:", pos, "->", val,\
+                "prob indep:", self.prob[char], "prob cond:", cond_prob_sup[(pos, char)]"""###############################################################
         
     def unigram(self, char):
         """
@@ -472,7 +474,7 @@ learning of morphology.
 parser.add_argument('-i', dest='c', nargs="?",
         type=argparse.FileType('r'), help="input file")
 parser.add_argument('-no-prefix', dest='no_prefix',
-                    action='store_true', help="Ignore prefixes")
+                    action='store_true', help="ignore prefixes")
 
 parser.set_defaults(feature=False)
 args = parser.parse_args()
@@ -484,7 +486,7 @@ print "Average sentence length:".encode('utf-8'), len_sent
 # Minimal word length threshold
 thres_word = int(len_word * 2 / 3) + 1
 # Maximal affix length
-len_max_aff = int((len_word**2) / len_sent) + 2 # set to 3
+len_max_aff = int((len_word**2) / len_sent) + 3 # set to 4
 # Get statistics from the corpus.
 # Filter the vocabulary according to the word threshold
 # We will be working using this dictionnary.
@@ -508,7 +510,7 @@ for char, pos, val in stats.get_informants():
     print "\n\n===== Informant", char.encode('utf-8'), "at position", pos, "====="
     aff_start = extend_affix(char, pos)
     print "\nInformant extended to affix", aff_start.encode('utf-8')
-    # Get the bases seen with the start affix.
+    # Get the bases seen with the starting affix.
     bases_remainders = stats.get_filter_bases(aff_start)
     # bases_remainders is the set of base we are going to process
     # for the whole search of the type. Since this set of bases becomes
@@ -523,12 +525,12 @@ for char, pos, val in stats.get_informants():
     first_affix     = True
     continue_search = True
     while continue_search:
-        # Get the bases seen with the start affixe.
+        # Get the bases seen with the starting affixe.
         if first_affix:
             bases1 = list(bases_remainders)
         elif count_refused == 0:
-            # The start affix is the null affix. Take the bases associated
-            # to it when it was accepted as aff2.
+            # The starting affix is the null affix. Take the bases
+            # associated to it when it was accepted as aff2.
             if aff_start == "":
                 bases1 = list(bases2)
             else:
@@ -560,13 +562,13 @@ for char, pos, val in stats.get_informants():
                 for aff in [aff_start, aff_candidate]:
                     if aff not in aff_accepted:
                         aff_accepted.append(aff)
-                # The candidate affix becomes the start affix.
+                # The candidate affix becomes the starting affix.
                 aff_start     = aff_candidate
                 count_refused = 0
                 first_affix   = False
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
-            # The refused pair contains the first start affix. No type
+            # The refused pair contains the first starting affix. No type
             # is to be created here.
             if first_affix:
                 print "\nThe first affix is not accepted. No type creation."
@@ -583,18 +585,3 @@ for char, pos, val in stats.get_informants():
  
 # Output the morphemes.
 pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
-"""for t in morphemes:
-    print t
-    if morphemes[t][0]:
-        print "prefix".encode('utf-8')
-    else:
-        print "suffix".encode('utf-8')
-
-    for aff in morphemes[t][1]:
-        print '\t' + aff.encode('utf-8')
-    print
-    for base in morphemes[t][2]:
-        print '\t' + base.encode('utf-8')"""
-
-
-
