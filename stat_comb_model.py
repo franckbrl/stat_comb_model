@@ -292,14 +292,13 @@ def extend_prefix(aff, pos):
         while pos_neighbor >= 0:
             neighbors = stats.get_neighbors(aff, pos, pos_neighbor)
             # Take the character with highest probability.
-            best_n = neighbors[0][0]
             aff = best_n + aff
             pos.insert(0, pos_neighbor)
             pos_neighbor -= 1
     # Try extension to the right, as long as the affix
     # does not exceed the maximum length.
     pos_neighbor = pos[-1] + 1
-    while pos_neighbor < len_max_aff:
+    while pos_neighbor <= len_max_aff:
         neighbors = stats.get_neighbors(aff, pos, pos_neighbor)
         if gradient_above_thres(neighbors):
             best_n = neighbors[0][0]
@@ -328,7 +327,7 @@ def extend_suffix(aff, pos):
     # Try extension to the left, as long as the affix
     # does not exceed the maximum length.
     pos_neighbor = pos[0] - 1
-    while pos_neighbor > -len_max_aff:
+    while pos_neighbor >= -len_max_aff:
         neighbors = stats.get_neighbors(aff, pos, pos_neighbor)
         if gradient_above_thres(neighbors):
             best_n = neighbors[0][0]
@@ -486,7 +485,7 @@ print "Average sentence length:".encode('utf-8'), len_sent
 # Minimal word length threshold
 thres_word = int(len_word * 2 / 3) + 1
 # Maximal affix length
-len_max_aff = int((len_word**2) / len_sent) + 3 # set to 4
+len_max_aff = 4 # int((len_word**2) / len_sent) + 3 # set to 4
 # Get statistics from the corpus.
 # Filter the vocabulary according to the word threshold
 # We will be working using this dictionnary.
