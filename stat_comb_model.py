@@ -292,6 +292,7 @@ def extend_prefix(aff, pos):
         while pos_neighbor >= 0:
             neighbors = stats.get_neighbors(aff, pos, pos_neighbor)
             # Take the character with highest probability.
+            best_n = neighbors[0][0]
             aff = best_n + aff
             pos.insert(0, pos_neighbor)
             pos_neighbor -= 1
@@ -494,9 +495,14 @@ stats = Statistics_char(filter_voc(voc, thres_word))
 # key = type ; value = [ affix_type, [affixes], [bases] ]
 morphemes  = {}
 morph_type = 1
+# Store the first affixes in an array in order to
+# avoid twice the same process.
+first_aff_list = []
 for char, pos, val in stats.get_informants():
+
     if pos >= 0 and args.no_prefix:
         continue
+
     # Start the search for the type's affixes and bases.
     aff_accepted    = []
     aff_refused     = []
@@ -509,6 +515,13 @@ for char, pos, val in stats.get_informants():
     print "\n\n===== Informant", char.encode('utf-8'), "at position", pos, "====="
     aff_start = extend_affix(char, pos)
     print "\nInformant extended to affix", aff_start.encode('utf-8')
+
+    if aff_start in first_aff_list:
+        print "\nThe affix has already been processed as a start affix."
+        continue
+    else:
+        first_aff_list.append(aff_start)
+
     # Get the bases seen with the starting affix.
     bases_remainders = stats.get_filter_bases(aff_start)
     # bases_remainders is the set of base we are going to process
@@ -523,6 +536,7 @@ for char, pos, val in stats.get_informants():
     # rejection leads to abandon the search for the type.
     first_affix     = True
     continue_search = True
+
     while continue_search:
         # Get the bases seen with the starting affixe.
         if first_affix:
@@ -534,6 +548,7 @@ for char, pos, val in stats.get_informants():
                 bases1 = list(bases2)
             else:
                 bases1 = stats.get_filter_bases(aff_start)
+
         # Get the second informant affix and the bases seen with it.
         aff_candidate, bases2 = get_aff_candidate_and_bases(bases1)
         if aff_candidate == None:
@@ -546,13 +561,28 @@ for char, pos, val in stats.get_informants():
             # Keep the base remainders that are common to both affixes.
             next_bases = [r for r in bases_remainders\
                                     if r in bases1 and r in bases2]
+
             # After accepting the affix, we need to have at least n bases
             # (n = 2 according to Andreev, n = min_remainders here).
             if len(next_bases) < min_remainders:
-                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
-                print "\nEnd of search for the type (less than", min_remainders, "bases left)."
-                close_type()
-                break
+                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED (not enough common stems)."
+                #print "\nEnd of search for the type (less than", min_remainders, "bases left)."
+                # If accepting the affix deletes too much stems from
+                # the remainders, refuse it and test the next affix
+                # in the candidate list (Andreev tells to stop the search
+                # for the type in this case, but it prevents from finding
+                # good affixes).
+                # Simplify this part by checking the stems left before the reduction rate computation ####################################################
+                aff_refused.append(aff_candidate)
+                count_refused += 1
+                #close_type()
+                #break
+                # When 5 affixes are refused in a row, stop the search.
+                if count_refused > 9:
+                    print "\nEnd of search for the type (5 refused affixes in a row)."
+                    continue_search = False
+                    close_type()
+
             else:
                 # Update the base remainders.
                 bases_remainders = next_bases
@@ -565,6 +595,7 @@ for char, pos, val in stats.get_informants():
                 aff_start     = aff_candidate
                 count_refused = 0
                 first_affix   = False
+
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
             # The refused pair contains the first starting affix. No type
@@ -575,12 +606,10 @@ for char, pos, val in stats.get_informants():
             aff_refused.append(aff_candidate)
             count_refused += 1
             # When 5 affixes are refused in a row, stop the search.
-            if count_refused > 4:
+            if count_refused > 9:
                 print "\nEnd of search for the type (5 refused affixes in a row)."
                 continue_search = False
                 close_type()
-
-
  
 # Output the morphemes.
-pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
+#pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
