@@ -579,7 +579,22 @@ for char, pos, val in stats.get_informants():
                 #break
                 # When 5 affixes are refused in a row, stop the search.
                 if count_refused > 9:
-                    print "\nEnd of search for the type (5 refused affixes in a row)."
+                    print "\nEnd of search for the type (10 refused affixes in a row)."
+                    continue_search = False
+                    close_type()
+
+                elif first_affix:
+                    print "\nThe first affix is not accepted. No type creation."
+                    continue_search = False
+                    close_type()
+
+            elif len(next_bases) < len(bases_remainders)/10:
+                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED (common stems reduction too high)."
+                aff_refused.append(aff_candidate)
+                count_refused += 1 
+        
+                if first_affix:
+                    print "\nThe first affix is not accepted. No type creation."
                     continue_search = False
                     close_type()
 
@@ -607,7 +622,7 @@ for char, pos, val in stats.get_informants():
             count_refused += 1
             # When 5 affixes are refused in a row, stop the search.
             if count_refused > 9:
-                print "\nEnd of search for the type (5 refused affixes in a row)."
+                print "\nEnd of search for the type (10 refused affixes in a row)."
                 continue_search = False
                 close_type()
  
