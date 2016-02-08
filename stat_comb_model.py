@@ -7,7 +7,7 @@
 ##########################################################################
 
 """
-Andreev's statistico-combinatorial model for unsupervized
+Andreev's statistico-combinatorial model for unsupervised
 learning of morphology.
 """
 
@@ -89,8 +89,6 @@ class Statistics_char():
             pos  = inf[0][0]
             val  = inf[1]
             self.informants.append((char, pos, val))
-            """print "INFORMANT:", char.encode('utf-8'), "at position:", pos, "->", val,\
-                "prob indep:", self.prob[char], "prob cond:", cond_prob_sup[(pos, char)]"""###############################################################
         
     def unigram(self, char):
         """
@@ -138,51 +136,51 @@ class Statistics_char():
         return sorted_n
 
 
-    def get_filter_bases(self, aff, bases1=None):
+    def get_filter_stems(self, aff, stems1=None):
         """
-        Get from the corpus the bases seen with the
+        Get from the corpus the stems seen with the
         affix (in an array).
         """
         global aff_is_prefix
         len_aff = len(aff)
-        bases = defaultdict(lambda: 0)
-        # If the candidate affix is null, we count the bases seen
-        # with it among the other affix bases.
+        stems = defaultdict(lambda: 0)
+        # If the candidate affix is null, we count the stems seen
+        # with it among the other affix stems.
         if aff == "":
-            for word in bases1:
+            for word in stems1:
                 if word in self.voc:
-                    bases[word] += self.voc[word]
-        # Otherwise, get the bases from the vocabulary.
+                    stems[word] += self.voc[word]
+        # Otherwise, get the stems from the vocabulary.
         else:
             for word in self.voc:
                 if aff_is_prefix and word.startswith(aff):
-                    base = word[len_aff :]
-                    bases[base] += self.voc[word]
+                    stem = word[len_aff :]
+                    stems[stem] += self.voc[word]
                 elif not aff_is_prefix and word.endswith(aff):
-                    base = word[: -len_aff]
-                    bases[base] += self.voc[word]
-        # Minimum base frequency (Andreev uses raw frequency
+                    stem = word[: -len_aff]
+                    stems[stem] += self.voc[word]
+        # Minimum stem frequency (Andreev uses raw frequency
         # and sets the minimum to an unspecified "n").
         n = 5
-        return [b for b in bases if bases[b] > n]
+        return [b for b in stems if stems[b] > n]
 
 
-    def get_remainders(self, bases):
+    def get_remainders(self, stems):
         """
-        Get all affixes seen with the bases (in an array).
+        Get all affixes seen with the stems (in an array).
         The null affix is considered and taken as "".
         """
         global aff_is_prefix, aff_start
         global aff_accepted, aff_refused
         remainders = defaultdict(lambda: 0)
-        regex = get_base_regex(bases1)
-        for word, base in [( w, m.group(1) )\
+        regex = get_stem_regex(stems1)
+        for word, stem in [( w, m.group(1) )\
                           for w in self.voc for m in (regex(w),) if m]:
             if aff_is_prefix:
-                prefix = word[: -len(base)]
+                prefix = word[: -len(stem)]
                 remainders[prefix] += self.voc[word]
             else:
-                suffix = word[len(base):]
+                suffix = word[len(stem):]
                 remainders[suffix] += self.voc[word]
         # Check whether the affixes were previously processed.
         remainders = [(r, remainders[r]) for r in remainders\
@@ -215,21 +213,21 @@ class Statistics_char():
         return [r[0] for r in remainders]
 
 
-def get_base_regex(bases):
+def get_stem_regex(stems):
     """
-    Store the bases in a regex.
+    Store the stems in a regex.
     """
-    # If the bases contain special characters, despecialize.
-    bases = " --- ".join(bases)
-    bases = bases.replace("*", "\*")
-    bases = bases.replace("?", "\?")
-    bases = bases.replace(".", "\.")
-    bases = bases.replace("|", "\|")
-    bases = bases.split(" --- ")
+    # If the stems contain special characters, despecialize.
+    stems = " --- ".join(stems)
+    stems = stems.replace("*", "\*")
+    stems = stems.replace("?", "\?")
+    stems = stems.replace(".", "\.")
+    stems = stems.replace("|", "\|")
+    stems = stems.split(" --- ")
     if aff_is_prefix:
-        regex = "(" + "|".join([b+"$" for b in bases]) + ")"
+        regex = "(" + "|".join([b+"$" for b in stems]) + ")"
     else:    
-        regex = "(" + "|".join(["^"+b for b in bases]) + ")"
+        regex = "(" + "|".join(["^"+b for b in stems]) + ")"
     return re.compile(regex).search
 
 
@@ -366,8 +364,8 @@ def flexional_aff(l1, l2):
     # Compute reduction threshold
     thres_reduction = 1 / len_word
     # Compute reduction rate. Andreev does not say how to keep
-    # bases1 higher than bases2 (in order to have reduction > 0).
-    # We swap the variables if bases2 is higher.
+    # stems1 higher than stems2 (in order to have reduction > 0).
+    # We swap the variables if stems2 is higher.
     if l2 > l1:
         l1, l2 = l2, l1
     reduction = (l1 - l2) / (k * l1)
@@ -377,48 +375,48 @@ def flexional_aff(l1, l2):
         return False
 
 
-def get_aff_candidate_and_bases(bases1):
+def get_aff_candidate_and_stems(stems1):
     """
-    Get the second informant affix and its bases.
-    Andreev does not consider the intersection of bases1 and 2.
-    In order to avoid bad situations when intersection = 1 base
+    Get the second informant affix and its stems.
+    Andreev does not consider the intersection of stems1 and 2.
+    In order to avoid bad situations when intersection = 1 stem
     (which shows that the affixes do not seem to be in the same
-    type), we set the minimum intersection length to 10.
+    class), we set the minimum intersection length to 10.
     """
-    global bases_remainders
-    for aff in stats.get_remainders([b for b in bases_remainders]):
-        bases2 = stats.get_filter_bases(aff, bases1)
-        if len( set(bases1) & set(bases2) ) > 10:
-            return aff, bases2
+    global stems_remainders
+    for aff in stats.get_remainders([b for b in stems_remainders]):
+        stems2 = stats.get_filter_stems(aff, stems1)
+        if len( set(stems1) & set(stems2) ) > 10:
+            return aff, stems2
     return None, None
 
 
-def check_paradigm_unity(aff_is_prefix, aff_accepted, bases_accepted):
+def check_paradigm_unity(aff_is_prefix, aff_accepted, stems_accepted):
     """
     Before we accept the new paradigm, we need to check its unity.
     """
-    # Proceed to some specification the types.
+    # Proceed to some specification the classes.
     # All the affixes contain the same letter on the side in contact
-    # with the base. Move this letter to the base (mak-es => make-s).
+    # with the stem. Move this letter to the stem (mak-es => make-s).
     if aff_is_prefix:
         while "" not in aff_accepted and\
                 len( set( [ aff[-1] for aff in aff_accepted ] ) ) == 1:
-            # Get the common character and add it to the bases.
+            # Get the common character and add it to the stems.
             char = aff_accepted[0][-1]
-            bases_accepted = [ char+base for base in bases_accepted ]
+            stems_accepted = [ char+stem for stem in stems_accepted ]
             # Remove the character from the affixes.
             aff_accepted = [ aff[:-1] for aff in aff_accepted ]
-        return aff_accepted, bases_accepted
+        return aff_accepted, stems_accepted
     else:
         while "" not in aff_accepted and\
                 len( set( [ aff[0] for aff in aff_accepted ] ) ) == 1:
-            # Get the common character and add it to the bases.
+            # Get the common character and add it to the stems.
             char = aff_accepted[0][0]
-            bases_accepted = [ base+char for base in bases_accepted ]
+            stems_accepted = [ stem+char for stem in stems_accepted ]
             # Remove the character from the affixes.
             aff_accepted = [ aff[1:] for aff in aff_accepted ]
-        return aff_accepted, bases_accepted
-    return aff_accepted, bases_accepted
+        return aff_accepted, stems_accepted
+    return aff_accepted, stems_accepted
 
 
 def existing_paradigm(aff_accepted):
@@ -432,37 +430,37 @@ def existing_paradigm(aff_accepted):
     return None
 
 
-def close_type():
+def close_cls():
     """
-    The search for the type is over, store what we have
+    The search for the class is over, store what we have
     collected about it so far.
     """
-    global morph_type, morphemes, aff_is_prefix
-    global aff_accepted, bases_remainders
+    global morph_cls, morphemes, aff_is_prefix
+    global aff_accepted, stems_remainders
     if aff_accepted != []:
-        aff_accepted, bases_accepted = check_paradigm_unity(aff_is_prefix,
+        aff_accepted, stems_accepted = check_paradigm_unity(aff_is_prefix,
                                                             aff_accepted,
-                                                            bases_remainders)
+                                                            stems_remainders)
 
         # Have we accepted the same paradigm before?
-        type_aff = existing_paradigm(aff_accepted)
-        if type_aff != None:
-            # Update the existing type by adding the new bases.
-            morphemes[type_aff][2] = list(set( morphemes[type_aff][2] + bases_accepted ))
-            print "\nUpdated type", type_aff
-            print "Type affixes:", ", ".join(morphemes[type_aff][1]).encode('utf-8')
-            print "Number of bases:", len(morphemes[type_aff][2])
-            print "New type bases:", ", ".join(morphemes[type_aff][2]).encode('utf-8')
+        cls_aff = existing_paradigm(aff_accepted)
+        if cls_aff != None:
+            # Update the existing class by adding the new stems.
+            morphemes[cls_aff][2] = list(set( morphemes[cls_aff][2] + stems_accepted ))
+            print "\nUpdated class", cls_aff
+            print "Class affixes:", ", ".join(morphemes[cls_aff][1]).encode('utf-8')
+            print "Number of stems:", len(morphemes[cls_aff][2])
+            print "New class stems:", ", ".join(morphemes[cls_aff][2]).encode('utf-8')
         else:
-            # Create a new type.
-            morphemes[morph_type] = [aff_is_prefix,
+            # Create a new class.
+            morphemes[morph_cls] = [aff_is_prefix,
                                      aff_accepted,
-                                     bases_accepted]
-            print "\nCreated type", morph_type
+                                     stems_accepted]
+            print "\nCreated class", morph_cls
             print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
-            print "Number of bases:", len(bases_accepted)
-            print "Accepted bases:", ", ".join(bases_accepted).encode('utf-8')
-            morph_type += 1
+            print "Number of stems:", len(stems_accepted)
+            print "Accepted stems:", ", ".join(stems_accepted).encode('utf-8')
+            morph_cls += 1
 
 
 parser = argparse.ArgumentParser( description =
@@ -492,9 +490,9 @@ len_max_aff = 4 # int((len_word**2) / len_sent) + 3 # set to 4
 # We will be working using this dictionnary.
 stats = Statistics_char(filter_voc(voc, thres_word))
 # The output of the model is stored in a dictionary (morphemes):
-# key = type ; value = [ affix_type, [affixes], [bases] ]
+# key = cls ; value = [ affix_cls, [affixes], [stems] ]
 morphemes  = {}
-morph_type = 1
+morph_cls = 1
 # Store the first affixes in an array in order to
 # avoid twice the same process.
 first_aff_list = []
@@ -503,7 +501,7 @@ for char, pos, val in stats.get_informants():
     if pos >= 0 and args.no_prefix:
         continue
 
-    # Start the search for the type's affixes and bases.
+    # Start the search for the class affixes and stems.
     aff_accepted    = []
     aff_refused     = []
     count_refused   = 0
@@ -522,109 +520,79 @@ for char, pos, val in stats.get_informants():
     else:
         first_aff_list.append(aff_start)
 
-    # Get the bases seen with the starting affix.
-    bases_remainders = stats.get_filter_bases(aff_start)
-    # bases_remainders is the set of base we are going to process
-    # for the whole search of the type. Since this set of bases becomes
+    # Get the stems seen with the starting affix.
+    stems_remainders = stats.get_filter_stems(aff_start)
+    # stems_remainders is the set of stem we are going to process
+    # for the whole search of the class. Since this set of stems becomes
     # smaller as affixes are accepted, we consider that the minimum length
     # for the set depends on the initial set length.
-    min_remainders = int(len(bases_remainders)/1000) + 1
+    min_remainders = int(len(stems_remainders)/1000) + 1
     if min_remainders < 10:
         min_remainders = 10
     # If aff_start is not accepted during the first test, reject it
     # and take the next informant. So while first_affix is true, affix
-    # rejection leads to abandon the search for the type.
+    # rejection leads to abandon the search for the class.
     first_affix     = True
     continue_search = True
 
     while continue_search:
-        # Get the bases seen with the starting affixe.
+        # Get the stems seen with the starting affixe.
         if first_affix:
-            bases1 = list(bases_remainders)
+            stems1 = list(stems_remainders)
         elif count_refused == 0:
-            # The starting affix is the null affix. Take the bases
+            # The starting affix is the null affix. Take the stems
             # associated to it when it was accepted as aff2.
             if aff_start == "":
-                bases1 = list(bases2)
+                stems1 = list(stems2)
             else:
-                bases1 = stats.get_filter_bases(aff_start)
+                stems1 = stats.get_filter_stems(aff_start)
 
-        # Get the second informant affix and the bases seen with it.
-        aff_candidate, bases2 = get_aff_candidate_and_bases(bases1)
+        # Get the second informant affix and the stems seen with it.
+        aff_candidate, stems2 = get_aff_candidate_and_stems(stems1)
         if aff_candidate == None:
-            print "\nEnd of search for the type (no more candidate affixes)."
-            close_type()
+            print "\nEnd of search for the class (no more candidate affixes)."
+            close_cls()
             break
         print "\nCandidate affixes:", aff_start.encode('utf-8'), "-", aff_candidate.encode('utf-8')
+
+        # After accepting the affix, we need to have at least n stems
+        # (n = 2 according to Andreev, n = min_remainders here).
+        next_stems = [r for r in stems_remainders\
+                                if r in stems1 and r in stems2]
+
         # Do the affixes come under inflexion?
-        if flexional_aff( len(bases1), len(bases2) ):
-            # Keep the base remainders that are common to both affixes.
-            next_bases = [r for r in bases_remainders\
-                                    if r in bases1 and r in bases2]
+        # Does accepting the second affix leave
+        # enough stems in the class?
+        if flexional_aff( len(stems1), len(stems2) )\
+                and len(next_stems) >= min_remainders\
+                and len(next_stems) >= len(stems_remainders)/10:
 
-            # After accepting the affix, we need to have at least n bases
-            # (n = 2 according to Andreev, n = min_remainders here).
-            if len(next_bases) < min_remainders:
-                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED (not enough common stems)."
-                #print "\nEnd of search for the type (less than", min_remainders, "bases left)."
-                # If accepting the affix deletes too much stems from
-                # the remainders, refuse it and test the next affix
-                # in the candidate list (Andreev tells to stop the search
-                # for the type in this case, but it prevents from finding
-                # good affixes).
-                # Simplify this part by checking the stems left before the reduction rate computation ####################################################
-                aff_refused.append(aff_candidate)
-                count_refused += 1
-                #close_type()
-                #break
-                # When 5 affixes are refused in a row, stop the search.
-                if count_refused > 9:
-                    print "\nEnd of search for the type (10 refused affixes in a row)."
-                    continue_search = False
-                    close_type()
-
-                elif first_affix:
-                    print "\nThe first affix is not accepted. No type creation."
-                    continue_search = False
-                    close_type()
-
-            elif len(next_bases) < len(bases_remainders)/10:
-                print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED (common stems reduction too high)."
-                aff_refused.append(aff_candidate)
-                count_refused += 1 
-        
-                if first_affix:
-                    print "\nThe first affix is not accepted. No type creation."
-                    continue_search = False
-                    close_type()
-
-            else:
-                # Update the base remainders.
-                bases_remainders = next_bases
-                print "==> Affix", aff_candidate.encode('utf-8'), "ACCEPTED."
-                # Add new accepted affix to the list.
-                for aff in [aff_start, aff_candidate]:
-                    if aff not in aff_accepted:
-                        aff_accepted.append(aff)
-                # The candidate affix becomes the starting affix.
-                aff_start     = aff_candidate
-                count_refused = 0
-                first_affix   = False
+            # Update the stem remainders.
+            stems_remainders = next_stems
+            print "==> Affix", aff_candidate.encode('utf-8'), "ACCEPTED."
+            # Add new accepted affix to the list.
+            for aff in [aff_start, aff_candidate]:
+                if aff not in aff_accepted:
+                    aff_accepted.append(aff)
+            # The candidate affix becomes the starting affix.
+            aff_start     = aff_candidate
+            count_refused = 0
+            first_affix   = False
 
         else:
             print "==> Affix", aff_candidate.encode('utf-8'), "REFUSED."
-            # The refused pair contains the first starting affix. No type
+            # The refused pair contains the first starting affix. No class
             # is to be created here.
             if first_affix:
-                print "\nThe first affix is not accepted. No type creation."
+                print "\nThe first affix is not accepted. No class creation."
                 break
             aff_refused.append(aff_candidate)
             count_refused += 1
             # When 5 affixes are refused in a row, stop the search.
             if count_refused > 9:
-                print "\nEnd of search for the type (10 refused affixes in a row)."
+                print "\nEnd of search for the class (10 refused affixes in a row)."
                 continue_search = False
-                close_type()
+                close_cls()
  
 # Output the morphemes.
 #pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
