@@ -11,7 +11,7 @@ line, and returns a set of classes, each containing a set of affixes
 that are associated to a set of stems.
 
 Ex: Class 1
-Affixes	Stems
-ies, y	all, authorit, abilit, ...
+- Affixes: ies, y
+- Stems: all, authorit, abilit, ...
 
 USAGE: stat_comb_model.py -i corpus.txt
