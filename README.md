@@ -14,4 +14,5 @@ Ex: Class 1
 - Affixes: ies, y
 - Stems: all, authorit, abilit, ...
 
-USAGE: stat_comb_model.py -i corpus.txt
+USAGE:
+	stat_comb_model.py -i corpus.txt
