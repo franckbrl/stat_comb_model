@@ -15,4 +15,5 @@ Ex: Class 1
 - Stems: all, authorit, abilit, ...
 
 USAGE:
+
 	stat_comb_model.py -i corpus.txt
