@@ -165,33 +165,3 @@ def existing_paradigm(aff_accepted, morphemes):
             return t
     return None
 
-
-def close_cls(morph_cls, morphemes, aff_is_prefix, aff_accepted, stems_remainders):
-    """
-    The search for the class is over, store what we have
-    collected about it so far.
-    """
-    if aff_accepted != []:
-        aff_accepted, stems_accepted = check_paradigm_unity(aff_is_prefix,
-                                                            aff_accepted,
-                                                            stems_remainders)
-
-        # Have we accepted the same paradigm before?
-        cls_aff = existing_paradigm(aff_accepted, morphemes)
-        if cls_aff != None:
-            # Update the existing class by adding the new stems.
-            morphemes[cls_aff][2] = list(set( morphemes[cls_aff][2] + stems_accepted ))
-            print "\nUpdated class", cls_aff
-            print "Class affixes:", ", ".join(morphemes[cls_aff][1]).encode('utf-8')
-            print "Number of stems:", len(morphemes[cls_aff][2])
-            print "New class stems:", ", ".join(morphemes[cls_aff][2]).encode('utf-8')
-        else:
-            # Create a new class.
-            morphemes[morph_cls] = [aff_is_prefix,
-                                     aff_accepted,
-                                     stems_accepted]
-            print "\nCreated class", morph_cls
-            print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
-            print "Number of stems:", len(stems_accepted)
-            print "Accepted stems:", ", ".join(stems_accepted).encode('utf-8')
-            morph_cls += 1

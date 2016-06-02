@@ -19,6 +19,37 @@ from functions import *
 import operator, math, sys, argparse, re, pickle
 
 
+def close_cls():
+    """
+    The search for the class is over, store what we have
+    collected about it so far.
+    """
+    global morph_cls, morphemes, aff_is_prefix, aff_accepted, stems_remainders
+    if aff_accepted != []:
+        aff_accepted, stems_accepted = check_paradigm_unity(aff_is_prefix,
+                                                            aff_accepted,
+                                                            stems_remainders)
+        # Have we accepted the same paradigm before?
+        cls_aff = existing_paradigm(aff_accepted, morphemes)
+        if cls_aff != None:
+            # Update the existing class by adding the new stems.
+            morphemes[cls_aff][2] = list(set( morphemes[cls_aff][2] + stems_accepted ))
+            print "\nUpdated class", cls_aff
+            print "Class affixes:", ", ".join(morphemes[cls_aff][1]).encode('utf-8')
+            print "Number of stems:", len(morphemes[cls_aff][2])
+            print "New class stems:", ", ".join(morphemes[cls_aff][2]).encode('utf-8')
+        else:
+            # Create a new class.
+            morphemes[morph_cls] = [aff_is_prefix,
+                                     aff_accepted,
+                                     stems_accepted]
+            print "\nCreated class", morph_cls
+            print "Accepted affixes:", ", ".join(aff_accepted).encode('utf-8')
+            print "Number of stems:", len(stems_accepted)
+            print "Accepted stems:", ", ".join(stems_accepted).encode('utf-8')
+            morph_cls += 1
+
+
 parser = argparse.ArgumentParser( description =
 """
 Andreev's statistico-combinatorial model for unsupervized
@@ -104,7 +135,8 @@ for char, pos, val in stats.get_informants():
                                                                       aff_accepted, aff_refused)
         if aff_candidate == None:
             print "\nEnd of search for the class (no more candidate affixes)."
-            close_cls(morph_cls, morphemes, aff_is_prefix, aff_accepted, stems_remainders)
+            #close_cls(morphemes, aff_is_prefix, aff_accepted, stems_remainders)
+            close_cls()
             break
         print "\nCandidate affixes:", aff_start.encode('utf-8'), "-", aff_candidate.encode('utf-8')
 
@@ -145,7 +177,8 @@ for char, pos, val in stats.get_informants():
             if count_refused > 9:
                 print "\nEnd of search for the class (10 refused affixes in a row)."
                 continue_search = False
-                close_cls(morph_cls, morphemes, aff_is_prefix, aff_accepted, stems_remainders)
+                #close_cls(morphemes, aff_is_prefix, aff_accepted, stems_remainders)
+                close_cls()
  
 # Output the morphemes.
 #pickle.dump( morphemes, open("stat_comb_morphemes.p", "wb") )
